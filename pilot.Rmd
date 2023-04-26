@@ -1,0 +1,454 @@
+---
+title: "NormsSharingPilot2"
+output:
+  pdf_document: default
+  html_document: default
+date: "2023-03-22"
+---
+
+# Load packages
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(xtable)
+library(reshape2)
+
+library(emmeans)
+library(dplyr)
+library(plm)
+library(sandwich)
+library(stringr)
+library(jtools)
+library(readr)
+library(stargazer)
+library(lubridate)
+library(ggthemes)
+library(vtable)
+library(lme4)
+library(ggplot2)
+library(ggtext)
+```
+
+# Process data
+
+```{r}
+
+df <- read.csv("042522_data.csv")
+df <- df %>% filter(PROLIFIC_PID != "")
+
+df <- df[-c(1,2),] # remove extra rows
+
+demo.cols <- c("Race", "LGBTQ", "Age", "Parental.status", "Religion")
+factor.cols <- grep("X\\d_\\w*.\\w*", colnames(df), value = TRUE)
+all_cols <- c(factor.cols, demo.cols)
+
+melted_df <- melt(df, id.vars = "ResponseId",
+                  measure.vars = all_cols,
+                  variable.name = "factor_demo",
+                  value.name = "rating")
+
+# # Create separate columns for each factor
+# df_new <- df %>%
+#   pivot_longer(cols = c(factor.cols, demo.cols) ,
+#                names_to = "everything", 
+#                values_to = "rating")
+
+
+# df_new <- separate(df_new, "everything", c("aux.info", "platform+audience"), sep = "_")
+
+
+melted_df$relationship <- ifelse(grepl("1|4", melted_df$factor_demo), "closefriend",
+                       ifelse(grepl("2|5", melted_df$factor_demo), "acquaintance",
+                       ifelse(grepl("3|6", melted_df$factor_demo), "dontknow", NA)))
+
+melted_df$location <- ifelse(grepl("1|2|3", melted_df$factor_demo), "gym",
+                   ifelse(grepl("4|5|6", melted_df$factor_demo), "home", NA))
+
+melted_df$`platform+audience` <- sub("^[^_]*_", "", melted_df$factor_demo)
+
+```
+
+```{r}
+#set factors
+#df.ess
+
+df.ess$`platform+audience` <- factor(df.ess$`platform+audience`)
+df.ess$relationship <- factor(df.ess$relationship)
+df.ess$location <- factor(df.ess$location)
+
+str(df.ess)
+```
+
+# means
+
+```{r}
+
+# lower numer = less acceptable 
+
+# by platform 
+plt.names <- unique(df.ess$`platform+audience`)
+for(plt in plt.names){
+  m <- mean(df.ess$rating[df.ess$`platform+audience` == plt])
+  print(paste(plt,m))
+}
+
+
+# by location
+mean(df.ess$rating[df.ess$`location` == "home"])
+mean(df.ess$rating[df.ess$`location` == "gym"])
+
+
+# by relationship
+mean(df.ess$rating[df.ess$`relationship` == "closefriend"])
+mean(df.ess$rating[df.ess$`relationship` == "acquaintance"])
+mean(df.ess$rating[df.ess$`relationship` == "dontknow"])
+
+
+# interactions, 2 way or 3 way
+mean(df.ess$rating[df.ess$`relationship` == "closefriend" & 
+     df.ess$`platform+audience` == "facebook.groupchat"])
+
+mean(df.ess$rating[df.ess$`relationship` == "dontknow" & 
+     df.ess$`platform+audience` == "tiktok.video"])
+
+mean(df.ess$rating[df.ess$`relationship` == "closefriend" & 
+     df.ess$`platform+audience` == "sms.groupchat" &
+     df.ess$location == "home"])
+
+
+
+```
+
+# anova
+
+```{r}
+
+anov <- aov(rating ~ `relationship`*`location`*`platform+audience`, data=df.ess)
+summary(anov)
+```
+
+```{r}
+library(xtable)
+library("stargazer")
+```
+
+# ols model
+
+```{r}
+platform <-df.ess$`platform+audience`
+model <- lm(rating ~ relationship*location*platform, data=df.ess)
+summary(model)
+#xtable(model)
+```
+
+# Josh 0425
+
+## Model Selection (ToDo for Qiwei: Make this process a for loop and add demographics)
+
+```{r mm}
+dfn <- df.ess
+dfn <- dfn %>%
+  separate(`platform+audience`, into = c("platform", "audience"), sep = "\\.")
+dfn$platform_audience <- paste(dfn$platform, dfn$audience, sep=":")
+mod.main <- lmer(rating ~ platform_audience + relationship + location + (1|ResponseId), data=dfn)
+mod.pr_l <- lmer(rating ~ platform_audience*relationship + location + (1|ResponseId), data=dfn)
+mod.pl_r <- lmer(rating ~ platform_audience*location + relationship  + (1|ResponseId), data=dfn)
+mod.lr_p <- lmer(rating ~ platform_audience + location*relationship  + (1|ResponseId), data=dfn)
+mod.lrp <- lmer(rating ~ platform_audience*location*relationship  + (1|ResponseId), data=dfn)
+
+# Calculate the AIC of each model
+aic.main <- AIC(mod.main)
+aic.pr_l <- AIC(mod.pr_l)
+aic.pl_r <- AIC(mod.pl_r)
+aic.lr_p <- AIC(mod.lr_p)
+aic.lrp <- AIC(mod.lrp)
+
+# Create a table with the AIC of each model using xtable
+
+aic_df <- data.frame(
+  Interactions = c("None", "PlatformAudience X Relationship", "PlatformAudience X Location", "Location X Relationship", "Location X Relationship * PlatformAudience"),
+  AIC = c(aic.main, aic.pr_l, aic.pl_r, aic.lr_p, aic.lrp)
+)
+aic_df <- aic_df[order(aic_df$AIC), ]
+tbl <- xtable(aic_df, caption="AIC of Different Model Interactions")
+
+
+
+```
+
+# Model
+```{r}
+min_aic_index <- which.min(aic_df$AIC)
+model_list <- list(mod.main, mod.pr_l, mod.pl_r, mod.lr_p, mod.lrp)
+mod <- model_list[[min_aic_index]]
+stargazer(mod, type='latex', caption="Model predicting sharing appropiateness")
+```
+
+
+## Big graphs
+
+```{r prepare data}
+library(ggstance)
+
+overall_mean <- mean(dfn$rating)
+ems <-
+  emmeans(mod, ~ platform_audience)
+ems_df <- as.data.frame(ems)
+ems_df <- ems_df %>% arrange(desc(emmean))
+ems_df$scaled_mean <- ems_df$emmean - overall_mean
+ems_df$id <- paste(ems_df$platform, ems_df$audience, sep = ":")
+ems_df$id <- ems_df$id <- substring(ems_df$id, 1, nchar(ems_df$id) - 1)
+
+ems_df <- ems_df %>%
+  separate(platform_audience, into = c("platform", "audience"), sep = ":")
+
+```
+
+
+```{r working}
+gg <-
+  ggplot(data = ems_df, aes(y = reorder(id, scaled_mean), x = scaled_mean)) +
+  geom_point(aes(color = scaled_mean), size = 4) +
+  geom_linerange(
+    aes(
+      xmin = lower.CL - overall_mean,
+      xmax = upper.CL - overall_mean,
+      y = reorder(id, scaled_mean)
+    ),
+    color = "grey50",
+    size = 0.5
+  ) +
+  scale_color_gradient2(
+    low = "red",
+    mid = "gray",
+    high = "darkgreen",
+    midpoint = 0,
+    guide = 'none'
+  ) +
+  geom_vline(xintercept = 0,
+             linetype = "dashed",
+             color = "black") +
+  theme_nice() + 
+  labs(title = "Mean Appropiateness Ratings by Platform and Audience",subtitle="Point estimates and 95% CIs from mixed model",
+       x = "(Platform + Audience Mean) - (Overall Mean)", y="Platform + Audience")
+
+gg
+
+ggsave("no_color.png", dpi=300, width = 10, height = 6, units = "in")
+
+
+
+
+```
+
+
+```{r colored_y_working}
+# Extract the unique platforms from the data
+library(RColorBrewer)
+
+unique_platforms <- unique(ems_df$platform)
+num_platforms <- length(unique_platforms)
+
+# Generate a color palette based on the number of unique platforms
+# platform_colors <- colorRampPalette(brewer.pal(5, "Set1"))(num_platforms)
+# names(platform_colors) <- unique_platforms
+
+
+platform_colors <-  c("#aec3b0", "#e2adf2", "#ff8c42", "#3e517a", "#379392", "#7b2d26")
+
+unique_platforms <- unique(ems_df$platform)
+names(platform_colors) <- unique_platforms
+
+# Create a function to assign colors to y-axis labels based on platform
+get_platform_color <- function(platform) {
+  return(platform_colors[[platform]])
+}
+
+# Modify the ggplot code to include colored y-axis labels
+gg <-
+  ggplot(data = ems_df, aes(y = reorder(id, scaled_mean), x = scaled_mean)) +
+  geom_point(aes(color = scaled_mean), size = 4) +
+  geom_linerange(
+    aes(
+      xmin = lower.CL - overall_mean,
+      xmax = upper.CL - overall_mean,
+      y = reorder(id, scaled_mean)
+    ),
+    color = "grey50",
+    size = 0.5
+  ) +
+  scale_color_gradient2(
+    low = "red",
+    mid = "gray",
+    high = "darkgreen",
+    midpoint = 0,
+    guide = 'none'
+  ) +
+  scale_y_discrete(labels = function(x) {
+    platform <- gsub("^(.+?):.+$", "\\1", x)
+    color <- sapply(platform, get_platform_color)
+    return(stringr::str_wrap(paste0('<span style="color:', color, ';">', x, '</span>')))
+  }) +
+  geom_vline(xintercept = 0,
+             linetype = "dashed",
+             color = "black") +
+  theme_nice() + 
+  labs(title = "Mean Appropiateness Ratings by Platform and Audience",subtitle="Point estimates and 95% CIs from mixed model",
+       x = "(Platform + Audience Mean) - (Overall Mean)", y="Platform + Audience") +
+  theme(axis.text.y = element_markdown())
+
+gg
+ggsave("colored_y.png", dpi=300, width = 10, height = 6, units = "in")
+
+```
+
+```{r colored_points}
+
+
+gg <-
+  ggplot(data = ems_df, aes(y = reorder(id, scaled_mean), x = scaled_mean)) +
+  geom_point(aes(color = factor(gsub("^(.+?):.+$", "\\1", id))), size = 4) +
+  geom_linerange(
+    aes(
+      xmin = lower.CL - overall_mean,
+      xmax = upper.CL - overall_mean,
+      y = reorder(id, scaled_mean)
+    ),
+    color = "grey50",
+    size = 0.5
+  ) +
+  scale_color_manual(values = platform_colors,  name = "Platform") +
+  scale_y_discrete(labels = function(x) {
+    platform <- gsub("^(.+?):.+$", "\\1", x)
+    color <- sapply(platform, get_platform_color)
+    return(stringr::str_wrap(paste0('<span style="color:', color, ';">', x, '</span>')))
+  }) +
+  geom_vline(xintercept = 0,
+             linetype = "dashed",
+             color = "black") +
+  theme_nice() + 
+  labs(title = "Mean Appropriateness Ratings by Platform and Audience", subtitle="Point estimates and 95% CIs from mixed model",
+       x = "(Platform + Audience Mean) - (Overall Mean)", y="Platform + Audience") +
+  theme(axis.text.y = element_markdown())
+
+gg
+
+ggsave("colored_y_colored_p.png", dpi=300, width = 10, height = 6, units = "in")
+
+
+
+
+
+```
+```{r colored_points_no_ci}
+gg <-
+  ggplot(data = ems_df, aes(y = reorder(id, scaled_mean), x = scaled_mean)) +
+  geom_point(aes(color = factor(gsub("^(.+?):.+$", "\\1", id))), size = 4) +
+  scale_color_manual(values = platform_colors,  name = "Platform") +
+  scale_y_discrete(labels = function(x) {
+    platform <- gsub("^(.+?):.+$", "\\1", x)
+    color <- sapply(platform, get_platform_color)
+    return(stringr::str_wrap(paste0('<span style="color:', color, ';">', x, '</span>')))
+  }) +
+  geom_vline(xintercept = 0,
+             linetype = "dashed",
+             color = "black") +
+  theme_nice() + 
+  labs(title = "Mean Appropriateness Ratings by Platform and Audience", subtitle="Point estimates from mixed model",
+       x = "(Platform + Audience Mean) - (Overall Mean)", y="Platform + Audience") +
+  theme(axis.text.y = element_markdown())
+
+gg
+
+ggsave("colored_y_colored_p_no_ci.png", dpi=300, width = 10, height = 6, units = "in")
+
+
+```
+
+
+
+# Scrap 
+
+## Platforms - DELETED
+
+### Which platforms differ?
+
+```{r}
+# # Let's look at means
+# plat_ems <- emmeans(mod, ~platform, nesting = "audience %in% platform")
+# em_df <- as.data.frame(plat_ems)
+# em_df
+```
+
+```{r}
+# Now let's look at pairwise comparisons
+# pairs(plat_ems, p.adjust='fdr')
+```
+
+```{r}
+# PLOT DATA
+# em_df$lower <- em_df$lower.CL
+# em_df$upper <- em_df$upper.CL
+# plat_plot <- ggplot(data = data.frame(em_df),
+#        aes(
+#          x = reorder(platform, emmean),
+#          y = emmean,
+#          ymin = lower,
+#          ymax = upper
+#        )) +
+#   geom_bar(
+#     stat = "identity",
+#     position = position_dodge(width = 0.9),
+#     color = "black"
+#   ) +
+#   geom_errorbar(position = position_dodge(width = 0.9), width = 0.2) +
+#   labs(x = "Platform", y = "Mean Sharing Appropiateness (1-5)") + theme_nice() + ggtitle("Sharing Appropiatenesss By Platform\n(Means and 95% CIs from mixed model)")
+# 
+# plat_plot
+
+```
+
+### Within platforms, what difference do audiences make? [DELETED]
+
+```{r}
+# plat_ems <- emmeans(mod, ~audience|platform, nesting = "audience %in% platform")
+# plat_ems
+# 
+# # Let's look at contrasts to see within which platforms does audience really matter
+# pw <- pairs(plat_ems, p.adjust='fdr')
+# pw
+```
+
+## Stacked bar chart
+
+```{r stacked_bar}
+palette_red_to_green <- colorRampPalette(colors = c("red", "darkgreen"))(5)
+
+df_proportions <- dfn %>%
+  group_by(platform, rating) %>%
+  summarize(count = n()) %>%
+  mutate(total = sum(count),
+         percentage = count / total * 100)
+
+df_proportions <- df_proportions %>%
+  group_by(platform) %>%
+  mutate(mean_rating = sum(rating * count) / sum(count),
+         prop_rating_5 = sum(ifelse(rating == 5, count, 0)) / sum(count)) %>%
+  ungroup()
+
+prop <- ggplot(df_proportions, aes(y = reorder(platform, prop_rating_5), x = percentage, fill = as.factor(rating))) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(round(percentage, 1), "%")),
+            position = position_stack(vjust = 0.5),
+            color='white',
+            size = 3) +
+  scale_fill_manual(values = palette_red_to_green, name = "Rating") +
+  labs(title = "Stacked Bar Chart of Ratings by Platform",
+       x = "Percentage",
+       y = "Platform") +
+  theme_nice()
+prop
+
+```
+
