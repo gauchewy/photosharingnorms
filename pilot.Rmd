@@ -54,36 +54,74 @@ melted_df <- melt(df, id.vars = c("ResponseId", demo.cols),
 # remove empty ratings
 melted_df <- melted_df[!is.na(melted_df$rating) & melted_df$rating != "",]
 
-# add all possibilties for 
-melted_df$relationship <- ifelse(grepl("1|4|7|10|13", melted_df$factor_demo), "closefriend",
-                       ifelse(grepl("2|5|8|11|14", melted_df$factor_demo), "acquaintance",
-                       ifelse(grepl("3|6|9|12|15", melted_df$factor_demo), "dontknow", NA)))
+melted_df$factor_demo <- as.character(melted_df$factor_demo)
 
-melted_df$location <- ifelse(grepl("1|2|3", melted_df$factor_demo), "gym",
-                   ifelse(grepl("4|5|6", melted_df$factor_demo), "home", 
-                    ifelse(grepl("7|8|9", melted_df$factor_demo), "street",
-                    ifelse(grepl("10|11|12", melted_df$factor_demo), "control",NA))))
+get_location <- function(g) {
+  number <- as.numeric(substring(strsplit(g, "_")[[1]], 2)[1])
+  
+  if (number %in% c(1, 2, 3)) {
+    return("gym")
+  } else if (number %in% c(4, 5, 6)) {
+    return("home")
+  } else if (number %in% c(7, 8, 9)) {
+    return("street")
+  } else if (number %in% c(10, 11, 12)) {
+    return("coffee")
+  } else if (number %in% c(13, 14, 15)) {
+    return("control")
+  } else {
+    return(NA)
+  }
+}
 
-# make another column
+# CURRENT ISSUE: WHAT IS X16? CURRENTLY IT IS NA 
+melted_df$location <- apply(melted_df, 1, function(row) get_location(row["factor_demo"]))
+
+
+get_relationship <- function(g) {
+  number <- as.numeric(substring(strsplit(g, "_")[[1]], 2)[1])
+  
+  if (number %in% c(1, 4, 7, 10, 13)) {
+    return("closefriend")
+  } else if (number %in% c(2, 5, 8, 11, 14)) {
+    return("acquaintance")
+  } else if (number %in% c(3, 6, 9, 12, 15)) {
+    return("dontknow")
+  } else {
+    return(NA)
+  }
+}
+
+melted_df$relationship <- apply(melted_df, 1, function(row) get_relationship(row["factor_demo"]))
+
+# make another column to clean factor_demo
 melted_df$`platformaudience` <- sub("^[^_]*_", "", melted_df$factor_demo)
 
-# some lack all demo, remove those
-demo.df <- melted_df[!is.na(melted_df$Age) & melted_df$Age !="",]
+#change all rating to as.numeric 
+melted_df$rating <- as.numeric(melted_df$rating)
 
-View(melted_df)
+# some lack all demo, remove those. ASK CAMI 
+melted_df <- melted_df[!is.na(melted_df$Age) & melted_df$Age !="",]
 
+df<-melted_df
+
+df<- na.omit(df) # REMOVE ALL NA FROM THE X16s
+
+View(df)
 
 ```
+
+## Deprecated
 
 ```{r}
 #set factors
 #df.ess
 
-df.ess$`platform+audience` <- factor(df.ess$`platform+audience`)
-df.ess$relationship <- factor(df.ess$relationship)
-df.ess$location <- factor(df.ess$location)
+#df.ess$`platform+audience` <- factor(df.ess$`platform+audience`)
+#df.ess$relationship <- factor(df.ess$relationship)
+#df.ess$location <- factor(df.ess$location)
 
-str(df.ess)
+#str(df.ess)
 ```
 
 # means
@@ -93,34 +131,39 @@ str(df.ess)
 # lower numer = less acceptable 
 
 # by platform 
-plt.names <- unique(df.ess$`platform+audience`)
+plt.names <- unique(df$platformaudience)
+
 for(plt in plt.names){
-  m <- mean(df.ess$rating[df.ess$`platform+audience` == plt])
+  m <- mean(df$rating[df$platformaudience == plt])
   print(paste(plt,m))
 }
 
 
 # by location
-mean(df.ess$rating[df.ess$`location` == "home"])
-mean(df.ess$rating[df.ess$`location` == "gym"])
+mean(df$rating[df$location == "home"])
+mean(df$rating[df$location == "gym"])
+mean(df$rating[df$location == "street"])
+mean(df$rating[df$location == "coffee"])
+mean(df$rating[df$location == "control"])
+
 
 
 # by relationship
-mean(df.ess$rating[df.ess$`relationship` == "closefriend"])
-mean(df.ess$rating[df.ess$`relationship` == "acquaintance"])
-mean(df.ess$rating[df.ess$`relationship` == "dontknow"])
+mean(df$rating[df$relationship == "closefriend"])
+mean(df$rating[df$relationship == "acquaintance"])
+mean(df$rating[df$relationship == "dontknow"])
 
 
 # interactions, 2 way or 3 way
-mean(df.ess$rating[df.ess$`relationship` == "closefriend" & 
-     df.ess$`platform+audience` == "facebook.groupchat"])
+mean(df$rating[df$relationship == "closefriend" & 
+     df$platformaudience == "facebook.groupchat"])
 
-mean(df.ess$rating[df.ess$`relationship` == "dontknow" & 
-     df.ess$`platform+audience` == "tiktok.video"])
+mean(df$rating[df$relationship == "dontknow" & 
+     df$platformaudience == "tiktok.video"])
 
-mean(df.ess$rating[df.ess$`relationship` == "closefriend" & 
-     df.ess$`platform+audience` == "sms.groupchat" &
-     df.ess$location == "home"])
+mean(df$rating[df$relationship == "closefriend" & 
+     df$platformaudience == "sms.groupchat" &
+     df$location == "home"])
 
 
 
