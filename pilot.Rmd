@@ -36,12 +36,10 @@ library(ggtext)
 
 df <- read.csv("may18.csv")
 
-#remove all 
+# remove all fake trials
 df <- df[!is.na(df$IPAddress) & df$IPAddress != "", ]
 
 df <- df[-c(1,2),] # remove extra rows
-
-View(df)
 
 demo.cols <- c("Race", "LGBTQ", "Age", "Parental.status", "Religion")
 
@@ -50,22 +48,17 @@ factor.cols
 
 all_cols <- c(factor.cols, demo.cols)
 
-melted_df <- melt(df, id.vars = "ResponseId",
+melted_df <- melt(df, id.vars = c("ResponseId", demo.cols),
                   measure.vars = all_cols,
                   variable.name = "factor_demo",
                   value.name = "rating")
 
-#########################<-- 
-View(melted_df)
+# remove empty ratings
+melted_df <- melted_df[!is.na(melted_df$rating) & melted_df$rating != "",]
 
-# # Create separate columns for each factor
-# df_new <- df %>%
-#   pivot_longer(cols = c(factor.cols, demo.cols) ,
-#                names_to = "everything", 
-#                values_to = "rating")
+# some lack all demo, remove those
+demo.df <- melted_df[!is.na(melted_df$Age) & melted_df$Age !="",]
 
-
-# df_new <- separate(df_new, "everything", c("aux.info", "platform+audience"), sep = "_")
 
 
 melted_df$relationship <- ifelse(grepl("1|4", melted_df$factor_demo), "closefriend",
