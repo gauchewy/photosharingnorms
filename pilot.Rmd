@@ -34,19 +34,29 @@ library(ggtext)
 
 ```{r}
 
-df <- read.csv("042522_data.csv")
-df <- df %>% filter(PROLIFIC_PID != "")
+df <- read.csv("may18.csv")
+
+#remove all 
+df <- df[!is.na(df$IPAddress) & df$IPAddress != "", ]
 
 df <- df[-c(1,2),] # remove extra rows
 
+View(df)
+
 demo.cols <- c("Race", "LGBTQ", "Age", "Parental.status", "Religion")
-factor.cols <- grep("X\\d_\\w*.\\w*", colnames(df), value = TRUE)
+
+factor.cols <- grep("X\\d*_\\w*.\\w*", colnames(df), value = TRUE)
+factor.cols
+
 all_cols <- c(factor.cols, demo.cols)
 
 melted_df <- melt(df, id.vars = "ResponseId",
                   measure.vars = all_cols,
                   variable.name = "factor_demo",
                   value.name = "rating")
+
+#########################<-- 
+View(melted_df)
 
 # # Create separate columns for each factor
 # df_new <- df %>%
