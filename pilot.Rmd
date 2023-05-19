@@ -41,7 +41,7 @@ df <- df[!is.na(df$IPAddress) & df$IPAddress != "", ]
 
 df <- df[-c(1,2),] # remove extra rows
 
-demo.cols <- c("Race", "LGBTQ", "Age", "Parental.status", "Religion")
+demo.cols <- c("Race", "Gender", "LGBTQ", "Age", "Parental.status", "Religion")
 
 # this is the X5_sms...
 factor.cols <- grep("X\\d*_\\w*.\\w*", colnames(df), value = TRUE)
@@ -111,7 +111,15 @@ View(df)
 
 ```
 
-## Deprecated
+-   NOTES
+
+-   all X16 are NA
+
+-   all NA's are removed
+
+-   some lack ALL demos, and are removed
+
+# DEPRECATED
 
 ```{r}
 #set factors
@@ -124,9 +132,23 @@ View(df)
 #str(df.ess)
 ```
 
-# means
-
 ```{r}
+library(xtable)
+library("stargazer")
+
+anov <- aov(rating ~ `relationship`*`location`*`platform+audience`, data=df.ess)
+summary(anov)
+
+
+platform <-df.ess$`platform+audience`
+model <- lm(rating ~ relationship*location*platform, data=df.ess)
+summary(model)
+#xtable(model)
+```
+
+# Means calc
+
+```{eans{r}
 
 # lower numer = less acceptable 
 
@@ -135,7 +157,7 @@ plt.names <- unique(df$platformaudience)
 
 for(plt in plt.names){
   m <- mean(df$rating[df$platformaudience == plt])
-  print(paste(plt,m))
+  #print(paste(plt,m))
 }
 
 
@@ -169,34 +191,152 @@ mean(df$rating[df$relationship == "closefriend" &
 
 ```
 
-# anova
+# Demographics Data Processing (1,0)
+
+## GENDER
 
 ```{r}
 
-anov <- aov(rating ~ `relationship`*`location`*`platform+audience`, data=df.ess)
-summary(anov)
+#table(df$Gender)
+
+# colum names 
+gender.cols <- c(
+  "gender.woman",
+  "gender.man",
+  "gender.nb",
+  "gender.notdis"
+)
+
+# initalize new 
+df[, gender.cols] <- 0
+
+df$gender.woman <- as.numeric(grepl("1",df$Gender))
+df$gender.man <- as.numeric(grepl("2",df$Gender))
+df$gender.nb <- as.numeric(grepl("3",df$Gender))
+df$gender.notdis <- as.numeric(grepl("4",df$Gender))
 ```
+
+## LGBTQ
 
 ```{r}
-library(xtable)
-library("stargazer")
+
+#table(df$LGBTQ)
+
+# colum names 
+lg.cols <- c(
+  "lg.str",
+  "lg.gay",
+  "lg.les",
+  "lg.bi",
+  "lg.pan",
+  "lg.qu",
+  "lg.ase",
+  "lg.notdis",
+  "lg.self"
+)
+
+# initalize new 
+df[, lg.cols] <- 0
+
+df$lg.str <- as.numeric(grepl("1",df$LGBTQ))
+df$lg.gay <- as.numeric(grepl("2",df$LGBTQ))
+df$lg.les <- as.numeric(grepl("3",df$LGBTQ))
+df$lg.bi <- as.numeric(grepl("4",df$LGBTQ))
+df$lg.pan <- as.numeric(grepl("5",df$LGBTQ))
+df$lg.qu <- as.numeric(grepl("6",df$LGBTQ))
+df$lg.ase <- as.numeric(grepl("7",df$LGBTQ))
+df$lg.notdis <- as.numeric(grepl("8",df$LGBTQ))
+df$lg.self <- as.numeric(grepl("9",df$LGBTQ))
+
+View(df)
+
 ```
 
-# ols model
+## RACE
 
 ```{r}
-platform <-df.ess$`platform+audience`
-model <- lm(rating ~ relationship*location*platform, data=df.ess)
-summary(model)
-#xtable(model)
+#table(df$Race)
+
+# colum names 
+race.cols <- c(
+  "race.white",
+  "race.lat",
+  "race.afr",
+  "race.asian",
+  "race.ind",
+  "race.isl",
+  "race.mid",
+  "race.other"
+)
+
+# initalize new 
+df[, race.cols] <- 0
+
+df$race.white <- as.numeric(grepl("1",df$Race))
+df$race.lat <- as.numeric(grepl("2",df$Race))
+df$race.afr <- as.numeric(grepl("3",df$Race))
+df$race.asian <- as.numeric(grepl("4",df$Race))
+df$race.ind <- as.numeric(grepl("5",df$Race))
+df$race.isl <- as.numeric(grepl("6",df$Race))
+df$race.mid <- as.numeric(grepl("7",df$Race))
+df$race.other <- as.numeric(grepl("8",df$Race))
+
+View(df)
+
 ```
 
-# Josh 0425
+## PARENTAL
 
-## Model Selection (ToDo for Qiwei: Make this process a for loop and add demographics)
+```{r}
+#table(df$Parental.status)
+
+parent.cols <- c(
+  "parent.yes",
+  "parent.no",
+  "parent.notdis"
+)
+
+df[,parent.cols] <- 0
+df$parent.yes <- as.numeric(grepl("2|3|4|5",df$Parental.status))
+df$parent.no <- as.numeric(grepl("1",df$Parental.status))
+df$parent.notdis <- as.numeric(grepl("6",df$Parental.status))
+
+View(df)
+```
+
+## RELIGION
+
+```{r}
+
+# More than 10, grepl gets confused
+#table(df$Religion)
+
+# make into num to count 
+df$Religion <- as.numeric(df$Religion)
+
+relig.cols <- c(
+  "relig.yes",
+  "relig,no",
+  "relig,notdis"
+)
+
+df[,relig.cols] <- 0
+
+df$relig.yes <- as.numeric(df$Religion %in% c(1,2,3,4,5,6,7,8,9,12))
+df$relig.no <- as.numeric(df$Religion %in% c(10,11))
+df$relig.notdis <- as.numeric(df$Religion %in% c(13))
+
+View(df)
+```
+
+# Model selection 
+
+```{r}
+
+```
 
 ```{r mm}
-dfn <- df.ess
+dfn <- df
 dfn <- dfn %>%
   separate(`platform+audience`, into = c("platform", "audience"), sep = "\\.")
 dfn$platform_audience <- paste(dfn$platform, dfn$audience, sep=":")
