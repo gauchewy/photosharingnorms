@@ -13,7 +13,7 @@ library(tidyr)
 library(dplyr)
 library(xtable)
 library(reshape2)
-
+library(lme4)
 library(emmeans)
 library(dplyr)
 library(plm)
@@ -28,6 +28,9 @@ library(vtable)
 library(lme4)
 library(ggplot2)
 library(ggtext)
+library(lmerTest)
+library(stargazer)
+library(texreg)
 ```
 
 # Process data
@@ -281,7 +284,7 @@ df$race.isl <- as.numeric(grepl("6",df$Race))
 df$race.mid <- as.numeric(grepl("7",df$Race))
 df$race.other <- as.numeric(grepl("8",df$Race))
 
-View(df)
+#View(df)
 
 ```
 
@@ -301,7 +304,7 @@ df$parent.yes <- as.numeric(grepl("2|3|4|5",df$Parental.status))
 df$parent.no <- as.numeric(grepl("1",df$Parental.status))
 df$parent.notdis <- as.numeric(grepl("6",df$Parental.status))
 
-View(df)
+#View(df)
 ```
 
 ## RELIGION
@@ -316,8 +319,8 @@ df$Religion <- as.numeric(df$Religion)
 
 relig.cols <- c(
   "relig.yes",
-  "relig,no",
-  "relig,notdis"
+  "relig.no",
+  "relig.notdis"
 )
 
 df[,relig.cols] <- 0
@@ -326,25 +329,17 @@ df$relig.yes <- as.numeric(df$Religion %in% c(1,2,3,4,5,6,7,8,9,12))
 df$relig.no <- as.numeric(df$Religion %in% c(10,11))
 df$relig.notdis <- as.numeric(df$Religion %in% c(13))
 
-View(df)
+#View(df)
 ```
 
-# Model selection 
+# Model selection - no demographics 
 
 ```{r}
-
-```
-
-```{r mm}
-dfn <- df
-dfn <- dfn %>%
-  separate(`platform+audience`, into = c("platform", "audience"), sep = "\\.")
-dfn$platform_audience <- paste(dfn$platform, dfn$audience, sep=":")
-mod.main <- lmer(rating ~ platform_audience + relationship + location + (1|ResponseId), data=dfn)
-mod.pr_l <- lmer(rating ~ platform_audience*relationship + location + (1|ResponseId), data=dfn)
-mod.pl_r <- lmer(rating ~ platform_audience*location + relationship  + (1|ResponseId), data=dfn)
-mod.lr_p <- lmer(rating ~ platform_audience + location*relationship  + (1|ResponseId), data=dfn)
-mod.lrp <- lmer(rating ~ platform_audience*location*relationship  + (1|ResponseId), data=dfn)
+mod.main <- lmer(rating ~ platformaudience + relationship + location + (1|ResponseId), data=df)
+mod.pr_l <- lmer(rating ~ platformaudience*relationship + location + (1|ResponseId), data=df)
+mod.pl_r <- lmer(rating ~ platformaudience*location + relationship  + (1|ResponseId), data=df)
+mod.lr_p <- lmer(rating ~ platformaudience + location*relationship  + (1|ResponseId), data=df)
+mod.lrp <- lmer(rating ~ platformaudience*location*relationship  + (1|ResponseId), data=df)
 
 # Calculate the AIC of each model
 aic.main <- AIC(mod.main)
@@ -353,8 +348,7 @@ aic.pl_r <- AIC(mod.pl_r)
 aic.lr_p <- AIC(mod.lr_p)
 aic.lrp <- AIC(mod.lrp)
 
-# Create a table with the AIC of each model using xtable
-
+# plot in chart 
 aic_df <- data.frame(
   Interactions = c("None", "PlatformAudience X Relationship", "PlatformAudience X Location", "Location X Relationship", "Location X Relationship * PlatformAudience"),
   AIC = c(aic.main, aic.pr_l, aic.pl_r, aic.lr_p, aic.lrp)
@@ -362,27 +356,63 @@ aic_df <- data.frame(
 aic_df <- aic_df[order(aic_df$AIC), ]
 tbl <- xtable(aic_df, caption="AIC of Different Model Interactions")
 
-
+#tbl
 
 ```
 
-# Model
-
 ```{r}
+# plot best graph 
+
 min_aic_index <- which.min(aic_df$AIC)
 model_list <- list(mod.main, mod.pr_l, mod.pl_r, mod.lr_p, mod.lrp)
 mod <- model_list[[min_aic_index]]
+
 stargazer(mod, type='latex', caption="Model predicting sharing appropiateness")
+```
+
+# Model selection - with demographics 
+
+```{r}
+# no feature interactions 
+# with all demographics, see if any are important 
+
+all.demo.features <- c(gender.cols, race.cols, lg.cols, relig.cols, parent.cols)
+all.features <- c(all.demo.features, "platformaudience", "relationship", "location", "(1|ResponseId)")
+
+model.formula <- as.formula(paste("rating ~ ", paste(all.features, collapse = "+")))
+#model.formula
+demo.model <- lmer(model.formula, data = df)
+
+summary(demo.model)
+anova(demo.model)
+
+```
+
+# best model 
+
+```{r}
+# only demographic that matter is religion 
+# best interactions (low AIC) is with plataud * relationship
+
+# WHY WHEN ADDING RELIGION IN HERE, NOT STATISTIG?
+# what to DO with demographics variables? 
+
+mod <- lmer(rating ~ platformaudience*relationship + location + (1|ResponseId), data=df)
+
+summary(mod)
 ```
 
 ## Big graphs
 
 ```{r prepare data}
+
+# I HAVE TO SEPARATE PLATFORM AND AUDIENCE? CONFUSED LOL
+
 library(ggstance)
 
-overall_mean <- mean(dfn$rating)
+overall_mean <- mean(df$rating)
 ems <-
-  emmeans(mod, ~ platform_audience)
+  emmeans(mod, ~ platformaudience)
 ems_df <- as.data.frame(ems)
 ems_df <- ems_df %>% arrange(desc(emmean))
 ems_df$scaled_mean <- ems_df$emmean - overall_mean
