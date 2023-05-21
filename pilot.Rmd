@@ -623,24 +623,26 @@ ggsave("colored_y_colored_p_no_ci.png", dpi=300, width = 10, height = 6, units =
 
 ```
 
-## Stacked bar chart
+## Stacked bar chart 
 
 ```{r stacked_bar}
+# change bt platform and platform audience 
+
 palette_red_to_green <- colorRampPalette(colors = c("lightyellow", "purple"))(5)
 
 df_proportions <- df %>%
-  group_by(platform, rating) %>%
+  group_by(platformaudience, rating) %>%
   summarize(count = n()) %>%
   mutate(total = sum(count),
          percentage = count / total * 100)
 
 df_proportions <- df_proportions %>%
-  group_by(platform) %>%
+  group_by(platformaudience) %>%
   mutate(mean_rating = sum(rating * count) / sum(count),
          prop_rating_5 = sum(ifelse(rating == 5, count, 0)) / sum(count)) %>%
   ungroup()
 
-prop <- ggplot(df_proportions, aes(y = reorder(platform, prop_rating_5), x = percentage, fill = as.factor(rating))) +
+prop <- ggplot(df_proportions, aes(y = reorder(platformaudience, prop_rating_5), x = percentage, fill = as.factor(rating))) +
   geom_bar(stat = "identity") +
   geom_text(aes(label = paste0(round(percentage, 1), "%")),
             position = position_stack(vjust = 0.5),
