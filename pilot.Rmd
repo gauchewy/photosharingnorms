@@ -35,12 +35,16 @@ library(texreg)
 
 # Process data
 
+## look at demo freq
+
 ```{r}
-
 df <- read.csv("may18.csv")
-
-# remove all fake trials
 df <- df[!is.na(df$IPAddress) & df$IPAddress != "", ]
+```
+
+## main processing
+
+```{r}
 
 df <- df[-c(1,2),] # remove extra rows
 
@@ -151,7 +155,7 @@ summary(model)
 
 # Means calc
 
-```{eans{r}
+``` {eans{r}
 
 # lower numer = less acceptable 
 
@@ -189,9 +193,6 @@ mean(df$rating[df$relationship == "dontknow" &
 mean(df$rating[df$relationship == "closefriend" & 
      df$platformaudience == "sms.groupchat" &
      df$location == "home"])
-
-
-
 ```
 
 # Demographics Data Processing (1,0)
@@ -217,6 +218,8 @@ df$gender.woman <- as.numeric(grepl("1",df$Gender))
 df$gender.man <- as.numeric(grepl("2",df$Gender))
 df$gender.nb <- as.numeric(grepl("3",df$Gender))
 df$gender.notdis <- as.numeric(grepl("4",df$Gender))
+
+print(df$gender.man)
 ```
 
 ## LGBTQ
@@ -258,7 +261,7 @@ View(df)
 ## RACE
 
 ```{r}
-#table(df$Race)
+table(df$Race)
 
 # colum names 
 race.cols <- c(
@@ -312,7 +315,7 @@ df$parent.notdis <- as.numeric(grepl("6",df$Parental.status))
 ```{r}
 
 # More than 10, grepl gets confused
-#table(df$Religion)
+table(df$Religion)
 
 # make into num to count 
 df$Religion <- as.numeric(df$Religion)
@@ -332,7 +335,7 @@ df$relig.notdis <- as.numeric(df$Religion %in% c(13))
 #View(df)
 ```
 
-# Model selection - no demographics 
+# Model selection - no demographics
 
 ```{r}
 mod.main <- lmer(rating ~ platformaudience + relationship + location + (1|ResponseId), data=df)
@@ -370,7 +373,7 @@ mod <- model_list[[min_aic_index]]
 stargazer(mod, type='latex', caption="Model predicting sharing appropiateness")
 ```
 
-# Model selection - with demographics 
+# Model selection - with demographics
 
 ```{r}
 # no feature interactions 
@@ -388,7 +391,7 @@ anova(demo.model)
 
 ```
 
-# best model 
+# best model
 
 ```{r}
 # only demographic that matter is religion 
@@ -623,7 +626,7 @@ ggsave("colored_y_colored_p_no_ci.png", dpi=300, width = 10, height = 6, units =
 
 ```
 
-## Stacked bar chart 
+## Stacked bar chart
 
 ```{r stacked_bar}
 # change bt platform and platform audience 
