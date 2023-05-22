@@ -40,6 +40,105 @@ library(texreg)
 ```{r}
 df <- read.csv("may18.csv")
 df <- df[!is.na(df$IPAddress) & df$IPAddress != "", ]
+#View(df)
+```
+
+```{r}
+dfd <- df
+
+# colum names 
+gender.cols <- c(
+  "gender.woman",
+  "gender.man",
+  "gender.nb",
+  "gender.notdis"
+)
+
+# initalize new 
+dfd[, gender.cols] <- 0
+
+dfd$gender.woman <- as.numeric(grepl("1",dfd$Gender))
+dfd$gender.man <- as.numeric(grepl("2",dfd$Gender))
+dfd$gender.nb <- as.numeric(grepl("3",dfd$Gender))
+dfd$gender.notdis <- as.numeric(grepl("4",dfd$Gender))
+
+table(dfd$gender.woman)
+table(dfd$gender.man)
+table(dfd$gender.nb)
+table(dfd$gender.notdis)
+```
+
+```{r}
+# colum names 
+lg.cols <- c(
+  "lg.str",
+  "lg.gay",
+  "lg.les",
+  "lg.bi",
+  "lg.pan",
+  "lg.qu",
+  "lg.ase",
+  "lg.notdis",
+  "lg.self"
+)
+
+# initalize new 
+dfd[, lg.cols] <- 0
+
+dfd$lg.str <- as.numeric(grepl("1",dfd$LGBTQ))
+dfd$lg.gay <- as.numeric(grepl("2",dfd$LGBTQ))
+dfd$lg.les <- as.numeric(grepl("3",dfd$LGBTQ))
+dfd$lg.bi <- as.numeric(grepl("4",dfd$LGBTQ))
+dfd$lg.pan <- as.numeric(grepl("5",dfd$LGBTQ))
+dfd$lg.qu <- as.numeric(grepl("6",dfd$LGBTQ))
+dfd$lg.ase <- as.numeric(grepl("7",dfd$LGBTQ))
+dfd$lg.notdis <- as.numeric(grepl("8",dfd$LGBTQ))
+dfd$lg.self <- as.numeric(grepl("9",dfd$LGBTQ))
+
+
+table(dfd$lg.str)
+table(dfd$lg.gay)
+table(dfd$lg.les)
+table(dfd$lg.bi)
+table(dfd$lg.pan)
+table(dfd$lg.ase)
+table(dfd$lg.notdis)
+table(dfd$lg.self)
+```
+
+```{r}
+race.cols <- c(
+  "race.white",
+  "race.lat",
+  "race.afr",
+  "race.asian",
+  "race.ind",
+  "race.isl",
+  "race.mid",
+  "race.other"
+)
+
+# initalize new 
+dfd[, race.cols] <- 0
+
+dfd$race.white <- as.numeric(grepl("1",dfd$Race))
+dfd$race.lat <- as.numeric(grepl("2",dfd$Race))
+dfd$race.afr <- as.numeric(grepl("3",dfd$Race))
+dfd$race.asian <- as.numeric(grepl("4",dfd$Race))
+dfd$race.ind <- as.numeric(grepl("5",dfd$Race))
+dfd$race.isl <- as.numeric(grepl("6",dfd$Race))
+dfd$race.mid <- as.numeric(grepl("7",dfd$Race))
+dfd$race.other <- as.numeric(grepl("8",dfd$Race))
+
+table(dfd$race.white)
+table(dfd$race.lat)
+table(dfd$race.afr)
+table(dfd$race.asian)
+table(dfd$race.ind)
+table(dfd$race.isl)
+table(dfd$race.mid)
+table(dfd$race.other)
+
 ```
 
 ## main processing
@@ -126,39 +225,9 @@ View(df)
 
 -   some lack ALL demos, and are removed
 
-# DEPRECATED
-
-```{r}
-#set factors
-#df.ess
-
-#df.ess$`platform+audience` <- factor(df.ess$`platform+audience`)
-#df.ess$relationship <- factor(df.ess$relationship)
-#df.ess$location <- factor(df.ess$location)
-
-#str(df.ess)
-```
-
-```{r}
-library(xtable)
-library("stargazer")
-
-anov <- aov(rating ~ `relationship`*`location`*`platform+audience`, data=df.ess)
-summary(anov)
-
-
-platform <-df.ess$`platform+audience`
-model <- lm(rating ~ relationship*location*platform, data=df.ess)
-summary(model)
-#xtable(model)
-```
-
 # Means calc
 
-``` {eans{r}
-
-# lower numer = less acceptable 
-
+```{r}
 # by platform 
 plt.names <- unique(df$platformaudience)
 
@@ -207,8 +276,7 @@ mean(df$rating[df$relationship == "closefriend" &
 gender.cols <- c(
   "gender.woman",
   "gender.man",
-  "gender.nb",
-  "gender.notdis"
+  "gender.nb"
 )
 
 # initalize new 
@@ -217,9 +285,8 @@ df[, gender.cols] <- 0
 df$gender.woman <- as.numeric(grepl("1",df$Gender))
 df$gender.man <- as.numeric(grepl("2",df$Gender))
 df$gender.nb <- as.numeric(grepl("3",df$Gender))
-df$gender.notdis <- as.numeric(grepl("4",df$Gender))
+#df$gender.notdis <- as.numeric(grepl("4",df$Gender))
 
-print(df$gender.man)
 ```
 
 ## LGBTQ
@@ -230,62 +297,49 @@ print(df$gender.man)
 
 # colum names 
 lg.cols <- c(
-  "lg.str",
-  "lg.gay",
-  "lg.les",
-  "lg.bi",
-  "lg.pan",
-  "lg.qu",
-  "lg.ase",
-  "lg.notdis",
-  "lg.self"
+  "lg.str"
 )
 
 # initalize new 
 df[, lg.cols] <- 0
 
 df$lg.str <- as.numeric(grepl("1",df$LGBTQ))
-df$lg.gay <- as.numeric(grepl("2",df$LGBTQ))
-df$lg.les <- as.numeric(grepl("3",df$LGBTQ))
-df$lg.bi <- as.numeric(grepl("4",df$LGBTQ))
-df$lg.pan <- as.numeric(grepl("5",df$LGBTQ))
-df$lg.qu <- as.numeric(grepl("6",df$LGBTQ))
-df$lg.ase <- as.numeric(grepl("7",df$LGBTQ))
-df$lg.notdis <- as.numeric(grepl("8",df$LGBTQ))
-df$lg.self <- as.numeric(grepl("9",df$LGBTQ))
+#df$lg.queer <- as.numeric(grepl("2|3|4|5|6|7|8|9",df$LGBTQ))
 
-View(df)
+#df$lg.str <- as.numeric(grepl("1",df$LGBTQ))
+#df$lg.gay <- as.numeric(grepl("2",df$LGBTQ))
+#df$lg.les <- as.numeric(grepl("3",df$LGBTQ))
+#df$lg.bi <- as.numeric(grepl("4",df$LGBTQ))
+#df$lg.pan <- as.numeric(grepl("5",df$LGBTQ))
+#df$lg.qu <- as.numeric(grepl("6",df$LGBTQ))
+#df$lg.ase <- as.numeric(grepl("7",df$LGBTQ))
+#df$lg.notdis <- as.numeric(grepl("8",df$LGBTQ))
+#df$lg.self <- as.numeric(grepl("9",df$LGBTQ))
+
+#View(df)
 
 ```
 
 ## RACE
 
 ```{r}
-table(df$Race)
+#table(df$Race)
 
 # colum names 
 race.cols <- c(
-  "race.white",
+  "race.white.mid.ind",
   "race.lat",
   "race.afr",
-  "race.asian",
-  "race.ind",
-  "race.isl",
-  "race.mid",
-  "race.other"
+  "race.asian.isl"
 )
 
 # initalize new 
 df[, race.cols] <- 0
 
-df$race.white <- as.numeric(grepl("1",df$Race))
+df$race.white.mid.ind <- as.numeric(grepl("1|7|5",df$Race))
 df$race.lat <- as.numeric(grepl("2",df$Race))
 df$race.afr <- as.numeric(grepl("3",df$Race))
-df$race.asian <- as.numeric(grepl("4",df$Race))
-df$race.ind <- as.numeric(grepl("5",df$Race))
-df$race.isl <- as.numeric(grepl("6",df$Race))
-df$race.mid <- as.numeric(grepl("7",df$Race))
-df$race.other <- as.numeric(grepl("8",df$Race))
+df$race.asian.isl <- as.numeric(grepl("4|6",df$Race))
 
 #View(df)
 
@@ -297,15 +351,13 @@ df$race.other <- as.numeric(grepl("8",df$Race))
 #table(df$Parental.status)
 
 parent.cols <- c(
-  "parent.yes",
-  "parent.no",
-  "parent.notdis"
+  "parent.yes"
 )
 
 df[,parent.cols] <- 0
 df$parent.yes <- as.numeric(grepl("2|3|4|5",df$Parental.status))
-df$parent.no <- as.numeric(grepl("1",df$Parental.status))
-df$parent.notdis <- as.numeric(grepl("6",df$Parental.status))
+#df$parent.no <- as.numeric(grepl("1",df$Parental.status))
+#df$parent.notdis <- as.numeric(grepl("6",df$Parental.status))
 
 #View(df)
 ```
@@ -321,16 +373,14 @@ table(df$Religion)
 df$Religion <- as.numeric(df$Religion)
 
 relig.cols <- c(
-  "relig.yes",
-  "relig.no",
-  "relig.notdis"
+  "relig.yes"
 )
 
 df[,relig.cols] <- 0
 
 df$relig.yes <- as.numeric(df$Religion %in% c(1,2,3,4,5,6,7,8,9,12))
-df$relig.no <- as.numeric(df$Religion %in% c(10,11))
-df$relig.notdis <- as.numeric(df$Religion %in% c(13))
+#df$relig.no <- as.numeric(df$Religion %in% c(10,11))
+#df$relig.notdis <- as.numeric(df$Religion %in% c(13))
 
 #View(df)
 ```
@@ -370,7 +420,7 @@ min_aic_index <- which.min(aic_df$AIC)
 model_list <- list(mod.main, mod.pr_l, mod.pl_r, mod.lr_p, mod.lrp)
 mod <- model_list[[min_aic_index]]
 
-stargazer(mod, type='latex', caption="Model predicting sharing appropiateness")
+#stargazer(mod, type='latex', caption="Model predicting sharing appropiateness")
 ```
 
 # Model selection - with demographics
@@ -380,29 +430,25 @@ stargazer(mod, type='latex', caption="Model predicting sharing appropiateness")
 # with all demographics, see if any are important 
 
 all.demo.features <- c(gender.cols, race.cols, lg.cols, relig.cols, parent.cols)
-all.features <- c(all.demo.features, "platformaudience", "relationship", "location", "(1|ResponseId)")
+all.features <- c(all.demo.features, "platformaudience*relationship", "location", "(1|ResponseId)")
 
 model.formula <- as.formula(paste("rating ~ ", paste(all.features, collapse = "+")))
-#model.formula
 demo.model <- lmer(model.formula, data = df)
 
-summary(demo.model)
-anova(demo.model)
+# compare 
+nodemo.aic <- AIC(mod.pr_l)
+demo.aic <- AIC(demo.model)
 
-```
+nodemo.aic
+demo.aic
 
-# best model
+#f test 
+anova.res <- anova(mod.pr_l,demo.model)
+anova.res
+#stargazer(anova.res, title = "ANOVA Results", type = "latex")
 
-```{r}
-# only demographic that matter is religion 
-# best interactions (low AIC) is with plataud * relationship
+summary(mod.pr_l)
 
-# WHY WHEN ADDING RELIGION IN HERE, NOT STATISTIG?
-# what to DO with demographics variables? 
-
-mod <- lmer(rating ~ platformaudience*relationship + location + (1|ResponseId), data=df)
-
-#summary(mod)
 ```
 
 # Set up graphs
@@ -461,7 +507,7 @@ ems_df <- ems_df %>%
 ems_df$lower.CL <- ems_df$asymp.LCL
 ems_df$upper.CL <- ems_df$asymp.UCL
 
-#View(ems_df)
+View(ems_df)
 ```
 
 ```{r working}
