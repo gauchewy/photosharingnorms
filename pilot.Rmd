@@ -9,7 +9,15 @@ date: "2023-03-22"
 # Load packages
 
 ```{r}
+
+install.packages("broom.mixed")
+```
+
+```{r}
+library(broom.mixed)
+library(modelsummary)
 library(tidyr)
+library(car)
 library(dplyr)
 library(xtable)
 library(reshape2)
@@ -476,7 +484,7 @@ anova.res <- anova(
 )
 #stargazer(anova.res, title = "ANOVA Results", type = "latex")
 anova.df <- as.data.frame(anova.res)
-anova.df <- anova.df[order(anova.df$logLik, decreasing=TRUE),]
+anova.df <- anova.df[order(anova.df$AIC),]
 #View(anova.df)
 ```
 
@@ -487,10 +495,38 @@ tbl <- xtable(anova.df, caption="AIC, BIC, and log likelihood of Different Model
 tbl
 ```
 
-## demo corr runs 
+## MODEL TABLE 
 
 ```{r}
+mod <- mod.pr_l.d
+mod.df <- modelplot(mod, draw=FALSE)
+mod.df <- subset(mod.df, select= c(term, estimate, p.value))
+#View(mod.df)
 
+# make coef table with bolded significant terms
+mod.df.table <- mod.df
+mod.df.table$term <- ifelse(mod.df.table$p.value < 0.05, paste0("\\textbf{", as.character(mod.df.table$term), "}"), as.character(mod.df.table$term))
+
+#View(mod.df.table)
+
+xtable(mod.df.table)
+```
+
+## MODEL FIGURE plot best model coefs
+
+```{r}
+res <- broom.mixed::tidy(mod, effects = "fixed", conf.int = TRUE)
+res <- res[, c("term", "estimate", "std.error", "conf.low", "conf.high")]
+ggplot(res, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high)) +
+  theme_minimal() +
+  xlab("Estimate") +
+  ylab("Variable") +
+  ggtitle("Confidence Intervals for Model Estimates")
+
+res
+ggsave("plot.png", height = 8, width = 6)
 ```
 
 # Set up figures
@@ -503,7 +539,7 @@ df$platform <- sapply(strsplit(as.character(df$platformaudience), "\\."), `[`, 1
 df$audience <- sapply(strsplit(as.character(df$platformaudience), "\\."), `[`, 2)
 #View(df)
 
-# # Let's look at means
+# Let's look at means
 plat_ems <- emmeans(mod, ~platformaudience)
 em_df <- as.data.frame(plat_ems)
 View(em_df)
@@ -568,12 +604,11 @@ gg <-
 
 gg
 
-ggsave("no_color.png", dpi=300, width = 10, height = 6, units = "in")
-
-
-
+ggsave("RQ1platformaudience.png", dpi=300, width = 10, height = 6, units = "in")
 
 ```
+
+## DEPRECATED
 
 ```{r colored_y_working}
 # Extract the unique platforms from the data
@@ -586,9 +621,14 @@ num_platforms <- length(unique_platforms)
 # platform_colors <- colorRampPalette(brewer.pal(5, "Set1"))(num_platforms)
 # names(platform_colors) <- unique_platforms
 
-
-platform_colors <-  c("#aec3b0", "#e2adf2", "#ff8c42", "#3e517a", "#379392", "#7b2d26")
-
+platform_colors <-  c(
+  "sms"="#aec3b0", 
+  "instagram"="#e2adf2", 
+   "tiktok"="#ff8c42", 
+  "facebook"="#3e517a", 
+  "tweet"="#379392", 
+  "reddit"="#7b2d26")
+  
 unique_platforms <- unique(ems_df$platform)
 names(platform_colors) <- unique_platforms
 
@@ -607,7 +647,7 @@ gg <-
       xmax = upper.CL - overall_mean,
       y = reorder(id, scaled_mean)
     ),
-    color = "grey50",
+    color = platform_colors[platform],
     size = 0.5
   ) +
   scale_color_gradient2(
@@ -619,7 +659,7 @@ gg <-
   ) +
   scale_y_discrete(labels = function(x) {
     platform <- gsub("^(.+?):.+$", "\\1", x)
-    #color <- sapply(platform, get_platform_color)
+    color <- sapply(platform, get_platform_color)
     color <- "black"
     return(stringr::str_wrap(paste0('<span style="color:', color, ';">', x, '</span>')))
   }) +
@@ -631,8 +671,8 @@ gg <-
        x = "(Platform + Audience Mean) - (Overall Mean)", y="Platform + Audience") +
   theme(axis.text.y = element_markdown())
 
-gg
-ggsave("colored_y.png", dpi=300, width = 10, height = 6, units = "in")
+#gg
+#ggsave("colored_y.png", dpi=300, width = 10, height = 6, units = "in")
 
 ```
 
@@ -667,7 +707,7 @@ gg <-
 
 #gg
 
-ggsave("colored_y_colored_p.png", dpi=300, width = 10, height = 6, units = "in")
+#ggsave("colored_y_colored_p.png", dpi=300, width = 10, height = 6, units = "in")
 
 
 
@@ -696,17 +736,17 @@ gg <-
 
 #gg
 
-ggsave("colored_y_colored_p_no_ci.png", dpi=300, width = 10, height = 6, units = "in")
+#ggsave("colored_y_colored_p_no_ci.png", dpi=300, width = 10, height = 6, units = "in")
 
 
 ```
 
-## RQ3. Stacked bar chart
+## RQ3. which platformaudience is least appropriate
 
 ```{r stacked_bar}
 # change bt platform and platform audience 
 
-palette_red_to_green <- colorRampPalette(colors = c("lightyellow", "purple"))(5)
+palette_red_to_green <- colorRampPalette(colors = c("red", "darkgreen"))(5)
 
 df_proportions <- df %>%
   group_by(platformaudience, rating) %>%
@@ -724,13 +764,50 @@ prop <- ggplot(df_proportions, aes(y = reorder(platformaudience, prop_rating_5),
   geom_bar(stat = "identity") +
   geom_text(aes(label = paste0(round(percentage, 1), "%")),
             position = position_stack(vjust = 0.5),
-            color='black',
+            color='white',
+            size = 3) +
+  scale_fill_manual(values = palette_red_to_green, name = "Rating") +
+  labs(title = "Stacked Bar Chart of Ratings by PlatformAudience",
+       x = "Percentage",
+       y = "PlatformAudience") +
+  theme_nice()
+
+prop
+ggsave("RQ3.platformaudience.ratings", dpi=300, width = 10, height = 6, units = "in")
+
+```
+
+## RQ3.platform
+
+```{r}
+
+palette_red_to_green <- colorRampPalette(colors = c("red", "darkgreen"))(5)
+
+df_proportions <- df %>%
+  group_by(platform, rating) %>%
+  summarize(count = n()) %>%
+  mutate(total = sum(count),
+         percentage = count / total * 100)
+
+df_proportions <- df_proportions %>%
+  group_by(platform) %>%
+  mutate(mean_rating = sum(rating * count) / sum(count),
+         prop_rating_5 = sum(ifelse(rating == 5, count, 0)) / sum(count)) %>%
+  ungroup()
+
+prop <- ggplot(df_proportions, aes(y = reorder(platform, prop_rating_5), x = percentage, fill = as.factor(rating))) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(round(percentage, 1), "%")),
+            position = position_stack(vjust = 0.5),
+            color='white',
             size = 3) +
   scale_fill_manual(values = palette_red_to_green, name = "Rating") +
   labs(title = "Stacked Bar Chart of Ratings by Platform",
        x = "Percentage",
        y = "Platform") +
   theme_nice()
+
 prop
+ggsave("RQ3.platform.ratings", dpi=300, width = 10, height = 6, units = "in")
 
 ```
