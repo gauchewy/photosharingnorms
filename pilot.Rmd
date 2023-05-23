@@ -447,7 +447,7 @@ anova.res <- anova(mod.pr_l,demo.model)
 anova.res
 #stargazer(anova.res, title = "ANOVA Results", type = "latex")
 
-summary(mod.pr_l)
+# 
 
 ```
 
