@@ -266,7 +266,7 @@ mean(df$rating[df$relationship == "closefriend" &
 
 # Demographics Data Processing (1,0)
 
-## GENDER
+## gender
 
 ```{r}
 
@@ -289,7 +289,7 @@ df$gender.nb <- as.numeric(grepl("3",df$Gender))
 
 ```
 
-## LGBTQ
+## lgbtq
 
 ```{r}
 
@@ -320,7 +320,7 @@ df$lg.str <- as.numeric(grepl("1",df$LGBTQ))
 
 ```
 
-## RACE
+## race
 
 ```{r}
 #table(df$Race)
@@ -345,7 +345,7 @@ df$race.asian.isl <- as.numeric(grepl("4|6",df$Race))
 
 ```
 
-## PARENTAL
+## parental
 
 ```{r}
 #table(df$Parental.status)
@@ -362,7 +362,7 @@ df$parent.yes <- as.numeric(grepl("2|3|4|5",df$Parental.status))
 #View(df)
 ```
 
-## RELIGION
+## religion
 
 ```{r}
 
@@ -385,75 +385,115 @@ df$relig.yes <- as.numeric(df$Religion %in% c(1,2,3,4,5,6,7,8,9,12))
 #View(df)
 ```
 
-# Model selection - no demographics
+# Model selection
+
+## enumerate models 
 
 ```{r}
+mod.str <- c(
+  "platformaudience + relationship + location + (1|ResponseId)",
+  "platformaudience*relationship + location + (1|ResponseId)",
+  "platformaudience*location + relationship  + (1|ResponseId)",
+  "platformaudience + location*relationship  + (1|ResponseId)",
+  "platformaudience*location*relationship  + (1|ResponseId)"
+)
+
+#no demo models 
 mod.main <- lmer(rating ~ platformaudience + relationship + location + (1|ResponseId), data=df)
 mod.pr_l <- lmer(rating ~ platformaudience*relationship + location + (1|ResponseId), data=df)
 mod.pl_r <- lmer(rating ~ platformaudience*location + relationship  + (1|ResponseId), data=df)
 mod.lr_p <- lmer(rating ~ platformaudience + location*relationship  + (1|ResponseId), data=df)
 mod.lrp <- lmer(rating ~ platformaudience*location*relationship  + (1|ResponseId), data=df)
 
+# add demographics to each 
+all.demo.features <- c(gender.cols, race.cols, lg.cols, relig.cols, parent.cols)
+
+#demo models
+tmp.formula <- as.formula(paste("rating ~ ", paste(mod.str[[1]], "+" , paste(all.demo.features, collapse="+"))))
+mod.main.d <- lmer(tmp.formula, data=df)
+tmp.formula <- as.formula(paste("rating ~ ", paste(mod.str[[2]], "+" , paste(all.demo.features, collapse="+"))))
+mod.pr_l.d <- lmer(tmp.formula, data=df)
+tmp.formula <- as.formula(paste("rating ~ ", paste(mod.str[[3]], "+" , paste(all.demo.features, collapse="+"))))
+mod.pl_r.d <- lmer(tmp.formula, data=df)
+tmp.formula <- as.formula(paste("rating ~ ", paste(mod.str[[4]], "+" , paste(all.demo.features, collapse="+"))))
+mod.lr_p.d <- lmer(tmp.formula, data=df)
+tmp.formula <- as.formula(paste("rating ~ ", paste(mod.str[[5]], "+" , paste(all.demo.features, collapse="+"))))
+mod.lrp.d <- lmer(tmp.formula, data=df)
+
+
+
+```
+
+## DEPRECATED: find min AIC model
+
+```{r}
 # Calculate the AIC of each model
 aic.main <- AIC(mod.main)
 aic.pr_l <- AIC(mod.pr_l)
 aic.pl_r <- AIC(mod.pl_r)
 aic.lr_p <- AIC(mod.lr_p)
 aic.lrp <- AIC(mod.lrp)
+aic.main.d <- AIC(mod.main.d)
+aic.pr_l.d <- AIC(mod.pr_l.d)
+aic.pl_r.d <- AIC(mod.pl_r.d)
+aic.lr_p.d <- AIC(mod.lr_p.d)
+aic.lrp.d <- AIC(mod.lrp.d)
+
+all.aic <- c(
+  aic.main,aic.pr_l,aic.pl_r,aic.lr_p,aic.lrp,
+  aic.main.d,aic.pr_l.d,aic.pl_r.d,aic.lr_p.d,aic.lrp.d
+)
 
 # plot in chart 
 aic_df <- data.frame(
-  Interactions = c("None", "PlatformAudience X Relationship", "PlatformAudience X Location", "Location X Relationship", "Location X Relationship * PlatformAudience"),
-  AIC = c(aic.main, aic.pr_l, aic.pl_r, aic.lr_p, aic.lrp)
+  Interactions = c(
+    "None", "PlatformAudience x Relationship", "PlatformAudience x Location", "Location x Relationship", "Location x Relationship x PlatformAudience","None demo", "PlatformAudience x Relationship demo", "PlatformAudience x Location demo", "Location x Relationship demo", "Location x Relationship x PlatformAudience demo"
+    ),
+  AIC = all.aic
 )
 aic_df <- aic_df[order(aic_df$AIC), ]
 tbl <- xtable(aic_df, caption="AIC of Different Model Interactions")
-
+View(aic_df)
 #tbl
-
-```
-
-```{r}
-# plot best graph 
+# plot best table
 
 min_aic_index <- which.min(aic_df$AIC)
-model_list <- list(mod.main, mod.pr_l, mod.pl_r, mod.lr_p, mod.lrp)
+model_list <- list(
+  mod.main, mod.pr_l, mod.pl_r, mod.lr_p, mod.lrp,
+  mod.main.d, mod.pr_l.d, mod.pl_r.d, mod.lr_p.d, mod.lrp.d)
 mod <- model_list[[min_aic_index]]
 
 #stargazer(mod, type='latex', caption="Model predicting sharing appropiateness")
 ```
 
-# Model selection - with demographics
+## RQ0. anova all models 
 
 ```{r}
-# no feature interactions 
-# with all demographics, see if any are important 
-
-all.demo.features <- c(gender.cols, race.cols, lg.cols, relig.cols, parent.cols)
-all.features <- c(all.demo.features, "platformaudience*relationship", "location", "(1|ResponseId)")
-
-model.formula <- as.formula(paste("rating ~ ", paste(all.features, collapse = "+")))
-demo.model <- lmer(model.formula, data = df)
-
-# compare 
-nodemo.aic <- AIC(mod.pr_l)
-demo.aic <- AIC(demo.model)
-
-nodemo.aic
-demo.aic
-
 #f test 
-anova.res <- anova(mod.pr_l,demo.model)
-anova.res
+anova.res <- anova(
+  mod.main, mod.pr_l, mod.pl_r, mod.lr_p, mod.lrp,
+  mod.main.d, mod.pr_l.d, mod.pl_r.d, mod.lr_p.d, mod.lrp.d
+)
 #stargazer(anova.res, title = "ANOVA Results", type = "latex")
+anova.df <- as.data.frame(anova.res)
+anova.df <- anova.df[order(anova.df$logLik, decreasing=TRUE),]
+#View(anova.df)
+```
 
-# 
+## ANOVA TABLE
+
+```{r}
+tbl <- xtable(anova.df, caption="AIC, BIC, and log likelihood of Different Model Interactions")
+tbl
+```
+
+## demo corr runs 
+
+```{r}
 
 ```
 
-# Set up graphs
-
-### Which platforms differ?
+# Set up figures
 
 ```{r}
 
@@ -474,20 +514,7 @@ View(em_df)
 pairs(plat_ems, p.adjust='fdr')
 ```
 
-### Within platforms, what difference do audiences make? [DELETED]
-
-```{r}
-# plat_ems <- emmeans(mod, ~audience|platform, nesting = "audience %in% platform")
-# plat_ems
-# 
-# # Let's look at contrasts to see within which platforms does audience really matter
-# pw <- pairs(plat_ems, p.adjust='fdr')
-# pw
-```
-
-## 
-
-# Big Graphs
+# Figures
 
 ```{r prepare data}
 
@@ -509,6 +536,8 @@ ems_df$upper.CL <- ems_df$asymp.UCL
 
 View(ems_df)
 ```
+
+## RQ1.platformaudience 
 
 ```{r working}
 gg <-
@@ -672,7 +701,7 @@ ggsave("colored_y_colored_p_no_ci.png", dpi=300, width = 10, height = 6, units =
 
 ```
 
-## Stacked bar chart
+## RQ3. Stacked bar chart
 
 ```{r stacked_bar}
 # change bt platform and platform audience 
