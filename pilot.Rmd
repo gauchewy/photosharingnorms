@@ -519,6 +519,7 @@ res <- broom.mixed::tidy(mod, effects = "fixed", conf.int = TRUE)
 res <- res[, c("term", "estimate", "std.error", "conf.low", "conf.high")]
 ggplot(res, aes(x = estimate, y = reorder(term, estimate))) +
   geom_point() +
+  geom_vline(xintercept = 0, color = "red", linetype = "dashed") +
   geom_errorbarh(aes(xmin = conf.low, xmax = conf.high)) +
   theme_minimal() +
   xlab("Estimate") +
@@ -526,7 +527,7 @@ ggplot(res, aes(x = estimate, y = reorder(term, estimate))) +
   ggtitle("Confidence Intervals for Model Estimates")
 
 res
-ggsave("plot.png", height = 8, width = 6)
+ggsave("modelestimatesplot.png", height = 8, width = 6)
 ```
 
 # Set up figures
@@ -552,6 +553,35 @@ pairs(plat_ems, p.adjust='fdr')
 
 # Figures
 
+## RQ1.relationship 
+
+```{r}
+emm_options(rg.limit = 500000)
+em.rship <- emmeans(mod, ~ relationship)
+em.pw.rship <- pairs(em.rship, by = NULL, adjust = "fdr")
+em.pw.rship.df <-  data.frame(em.pw.rship)
+em.pw.rship.df.display <- em.pw.rship.df[c("contrast", "estimate", "p.value")]
+#View(em.pw.rship.df)
+
+#display table 
+xtable(em.pw.rship.df.display)
+```
+
+## RQ1.location
+
+```{r}
+em.loc <- emmeans(mod, ~ location)
+em.pw.loc <- pairs(em.loc, by = NULL, adjust = "fdr")
+em.pw.loc.df <-  data.frame(em.pw.loc)
+em.pw.loc.df.display <- em.pw.loc.df[c("contrast", "estimate", "p.value")]
+#View(em.pw.loc.df)
+
+# display table
+xtable(em.pw.loc.df.display)
+```
+
+## RQ1.platformaudience 
+
 ```{r prepare data}
 
 library(ggstance)
@@ -572,8 +602,6 @@ ems_df$upper.CL <- ems_df$asymp.UCL
 
 View(ems_df)
 ```
-
-## RQ1.platformaudience 
 
 ```{r working}
 gg <-
@@ -741,6 +769,12 @@ gg <-
 
 ```
 
+## RQ2 demo
+
+```{r}
+# to do 
+```
+
 ## RQ3. which platformaudience is least appropriate
 
 ```{r stacked_bar}
@@ -764,7 +798,7 @@ prop <- ggplot(df_proportions, aes(y = reorder(platformaudience, prop_rating_5),
   geom_bar(stat = "identity") +
   geom_text(aes(label = paste0(round(percentage, 1), "%")),
             position = position_stack(vjust = 0.5),
-            color='white',
+            color='',
             size = 3) +
   scale_fill_manual(values = palette_red_to_green, name = "Rating") +
   labs(title = "Stacked Bar Chart of Ratings by PlatformAudience",
