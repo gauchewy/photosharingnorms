@@ -505,7 +505,7 @@ mod.df <- subset(mod.df, select= c(term, estimate, p.value))
 
 # make coef table with bolded significant terms
 mod.df.table <- mod.df
-mod.df.table$term <- ifelse(mod.df.table$p.value < 0.05, paste0("\\textbf{", as.character(mod.df.table$term), "}"), as.character(mod.df.table$term))
+#mod.df.table$term <- ifelse(mod.df.table$p.value < 0.05, paste0('\\','textbf{', as.character(mod.df.table$term), "}"), as.character(mod.df.table$term))
 
 #View(mod.df.table)
 
@@ -772,7 +772,7 @@ gg <-
 ## RQ2 demo
 
 ```{r}
-# to do 
+# just refer to the main model table and figure. 
 ```
 
 ## RQ3. which platformaudience is least appropriate
